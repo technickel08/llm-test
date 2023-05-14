@@ -13,7 +13,7 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OPENAI_API_KEY="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"
+      - OPENAI_API_KEY=""
       - GOOGLE_CSE_ID="AIzaSyBpTJblUxc8yp88_gjmd2xNibwIdClSFaM"
       - GOOGLE_API_KEY="AIzaSyBpTJblUxc8yp88_gjmd2xNibwIdClSFaM"
 
