@@ -1,0 +1,28 @@
+version: '2'
+
+services:
+
+  langchain-server:
+#    image: ds-api-server-kyc:latest
+    image: langchain-server:latest
+    command: python3 main2.py
+    container_name: langchain-server
+    ports:
+      - 7860:7860
+
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENAI_API_KEY="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"
+      - GOOGLE_CSE_ID="AIzaSyBpTJblUxc8yp88_gjmd2xNibwIdClSFaM"
+      - GOOGLE_API_KEY="AIzaSyBpTJblUxc8yp88_gjmd2xNibwIdClSFaM"
+
+    logging:
+      driver: "json-file"
+      options:
+          max-size: "1200m"
+    volumes:
+      - /Users/akshatsrivastava/akshat_workspace/langchain_gradio:/app
+
+#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 - bp
+#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
