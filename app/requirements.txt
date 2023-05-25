@@ -7,3 +7,7 @@ google-api-python-client==2.86.0
 duckduckgo-search==2.9.5
 gTTS
 openai-whisper
+fastapi==0.65.1
+SpeechRecognition
+pydub
+fastapi_redis_cache
