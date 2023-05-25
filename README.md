@@ -9,7 +9,7 @@
 <h1 align="center">LangChain Conversation Bot</h1>
 
 <p align="center">
-  <img alt="Github top language" src="https://img.shields.io/github/languages/top/{{YOUR_GITHUB_USERNAME}}/akshat_workspace?color=56BEB8">
+  <!-- <img alt="Github top language" src="https://img.shields.io/github/languages/top/{{technickel08}}/akshat_workspace?color=56BEB8"> -->
 
   <!-- <img alt="Github language count" src="https://img.shields.io/github/languages/count/{{YOUR_GITHUB_USERNAME}}/akshat_workspace?color=56BEB8">
 
@@ -34,7 +34,7 @@
 
 <p align="center">
   <a href="#dart-about">About</a> &#xa0; | &#xa0; 
-  <a href="#sparkles-features">Features</a> &#xa0; | &#xa0;
+  <!-- <a href="#sparkles-features">Features</a> &#xa0; | &#xa0; -->
   <a href="#rocket-technologies">Technologies</a> &#xa0; | &#xa0;
   <a href="#white_check_mark-requirements">Requirements</a> &#xa0;  &#xa0;
 </p>
@@ -60,11 +60,11 @@ The following tools were used in this project:
 
 Before starting, you need to have [Git](https://git-scm.com), [Docker](https://www.docker.com/) and [Python](https://www.python.org/) installed.
 
-## Starting ##
+## How To Run Local Server ##
 
 ```bash
 # Clone this project
-$ git clone https://github.com/{{YOUR_GITHUB_USERNAME}}/akshat_workspace
+$ git clone https://github.com/technickel08/llm-test.git
 
 # Access
 $ cd llm-test
