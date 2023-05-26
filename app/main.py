@@ -27,9 +27,10 @@ from fastapi.responses import FileResponse
 from starlette.responses import StreamingResponse
 from langchain.llms import OpenAI
 import openai
-import redis
+# import redis
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import messages_from_dict, messages_to_dict
+from fastapi.responses import FileResponse
 
 
 app = FastAPI()
@@ -160,11 +161,12 @@ def text2audio_api_call(
         out["result"] = {"file":resp}
         out["resp_time"] = round(time.time()-t1,2)
         logger.info("complete")
-        return StreamingResponse(
-            content=resp,
-            status_code=status.HTTP_200_OK,
-            media_type="audio/wav",
-        )
+        return FileResponse(resp)
+    # StreamingResponse(
+    #         content=resp,
+    #         status_code=status.HTTP_200_OK,
+    #         media_type="audio/wav",
+    #     )
     except Exception as e:
         logger.error("some exception occurred-{}".format(str(e)))
         logger.error(traceback.format_exc())
@@ -191,26 +193,34 @@ def conversation(user_id:int,text : ResponseHeaderV1,
         dict: { result : LLM output,
                 "resp_time": time taken to record the reponse}
     """    
-    t1 = time.time()
-    user_input = text.dict()["text"]
-    context = redis_db.get(user_id,"")
-    chat = ChatOpenAI(temperature=0,model_name=selected_model)
-    template = """You are a companion, it is your job to talk to me with empathy.
-    Question: {text}
-    Answer:
-    """
-    # redis_connect.get(user_id)
-    # redis_connect.set('some_key', context)
-    prompt_template = PromptTemplate(input_variables=["text"], template=template)
-    answer_chain = LLMChain(llm=chat, prompt=prompt_template)
-    answer = answer_chain.run(user_input)
-    # memory = ConversationBufferMemory(return_messages=True)
-    # memory.chat_memory.add_user_message(user_input)
-    # memory.chat_memory.add_ai_message(answer)
-    # history = memory.load_memory_variables({})
-    # context["history"].append(history)
-    # redis_db.set(user_id, context)
-    return {"result":answer,"resp_time":time.time()-t1}
+    try:
+        t1 = time.time()
+        user_input = text.dict()["text"]
+        context = redis_db.get(user_id,"")
+        chat = ChatOpenAI(temperature=0,model_name=selected_model)
+        template = """You are a companion, it is your job to talk to me with empathy.
+        Question: {text}
+        Answer:
+        """
+        # redis_connect.get(user_id)
+        # redis_connect.set('some_key', context)
+        prompt_template = PromptTemplate(input_variables=["text"], template=template)
+        answer_chain = LLMChain(llm=chat, prompt=prompt_template)
+        answer = answer_chain.run(user_input)
+        # memory = ConversationBufferMemory(return_messages=True)
+        # memory.chat_memory.add_user_message(user_input)
+        # memory.chat_memory.add_ai_message(answer)
+        # history = memory.load_memory_variables({})
+        # context["history"].append(history)
+        # redis_db.set(user_id, context)
+        return {"result":answer,"resp_time":time.time()-t1}
+    except Exception as e:
+        logger.error("some exception occurred-{}".format(str(e)))
+        logger.error(traceback.format_exc())
+        out={}
+        out["status"]='FAILED'
+        out["message"]=str(traceback.format_exc())
+        return JSONResponse(status_code=400,content=out)
 
 
 if __name__ == "__main__":

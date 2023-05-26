@@ -13,7 +13,7 @@ import os
 # import openai
 import whisper
 from gtts import gTTS
-import chat_agent
+# import chat_agent
 from langchain.schema import (
     HumanMessage
 )
@@ -85,11 +85,12 @@ def audio2text_v2(file):
 def text2audio(text):
     logger.info("audio 2 text initialized")
     myobj = gTTS(text=text, lang='en', slow=False) 
+    myobj.save("audio_out.wav")
     logger.info("audio 2 text complete")
     mp3_fp = BytesIO()
     myobj.write_to_fp(mp3_fp)
     logger.info("audio 2 text file to bytes compelete")
-    return mp3_fp
+    return "audio_out.wav"
     
 class ChatBot:
     def __init__(self, memory, agent_chain):
