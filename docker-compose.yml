@@ -15,6 +15,7 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - OPENAI_API_KEY=""
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/cohort.json
 
     logging:
       driver: "json-file"

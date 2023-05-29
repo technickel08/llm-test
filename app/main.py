@@ -20,7 +20,7 @@ from langchain.chains import SimpleSequentialChain
 from fastapi import FastAPI,Response,status,Request,Depends
 from typing import Optional
 import utils
-from utils import ResponseHeaderV1
+from utils import ResponseHeaderV1,ResponseHeaderV2
 import traceback
 from fastapi import FastAPI,Request,Response,status,UploadFile,File,Form,Body,HTTPException,Depends
 from fastapi.responses import FileResponse
@@ -31,6 +31,7 @@ import openai
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import messages_from_dict, messages_to_dict
 from fastapi.responses import FileResponse
+from google.cloud import texttospeech
 
 
 app = FastAPI()
@@ -175,6 +176,70 @@ def text2audio_api_call(
         out["message"]=str(traceback.format_exc())
         return JSONResponse(status_code=400,content=out)
 
+
+
+@app.post('/text2audio_v2', status_code=200)
+def text2audio_api_call_v2(
+    text : ResponseHeaderV2,
+    # audio : UploadFile = File(None,description="Upload audio file")
+    ) -> StreamingResponse:
+    """
+    TTS : Text to speech conversion
+    Args:
+        text (ResponseHeaderV1): text to convert
+
+    Returns:
+        StreamingResponse: audio streaming output file
+    """
+
+    t1 = time.time()
+    try:
+        client = texttospeech.TextToSpeechClient()
+        text = text.dict()
+        voice_gender=text["voice_gender"]
+        language_code=text["language_code"]
+        text=text["text"]
+        input_text = texttospeech.SynthesisInput(text=text)
+
+        # Note: the voice can also be specified by name.
+        # Names of voices can be retrieved with client.list_voices().
+        if voice_gender == "FEMALE":
+            voice = texttospeech.VoiceSelectionParams(
+                language_code=language_code,
+                name="en-IN-Standard-D",
+                ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
+            )
+        else:
+            voice = texttospeech.VoiceSelectionParams(
+                language_code=language_code,
+                name="en-IN-Standard-B",
+                ssml_gender=texttospeech.SsmlVoiceGender.MALE,
+            )
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3
+        )
+
+        response = client.synthesize_speech(
+            request={"input": input_text, "voice": voice, "audio_config": audio_config}
+        )
+
+        # The response's audio_content is binary.
+        with open("output.mp3", "wb") as out:
+            out.write(response.audio_content)
+            print('Audio content written to file "output.mp3"')
+        return FileResponse("output.mp3")
+    # StreamingResponse(
+    #         content=resp,
+    #         status_code=status.HTTP_200_OK,
+    #         media_type="audio/wav",
+    #     )
+    except Exception as e:
+        logger.error("some exception occurred-{}".format(str(e)))
+        logger.error(traceback.format_exc())
+        out={}
+        out["status"]='FAILED'
+        out["message"]=str(traceback.format_exc())
+        return JSONResponse(status_code=400,content=out)
 
 
 @app.post('/conversation', status_code=200)
