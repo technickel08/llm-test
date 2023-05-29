@@ -123,3 +123,10 @@ def create_chatbot(model_name, seed_memory=None):
 class ResponseHeaderV1(BaseModel):
     # created_at : str
     text: str
+
+
+class ResponseHeaderV2(BaseModel):
+    # created_at : str
+    text: str
+    language_code: str
+    voice_gender : str
