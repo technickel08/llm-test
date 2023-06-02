@@ -1,5 +1,5 @@
-gradio==3.26.0
-hupper==1.11
+# gradio==3.26.0
+# hupper==1.11
 langchain==0.0.166
 openai==0.27.2
 python-dotenv==1.0.0
@@ -11,3 +11,8 @@ fastapi==0.65.1
 SpeechRecognition
 pydub
 fastapi_redis_cache
+pymongo
+uvicorn
+google-cloud-texttospeech
+python-multipart
+aiofiles

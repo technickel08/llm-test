@@ -9,39 +9,52 @@ services:
     container_name: llm-bot
     ports:
       # - 7860:7860
-      - 80:8080
+      - 8555:8080
 
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OPENAI_API_KEY=""
+      - OPENAI_API_KEY=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
       - GOOGLE_APPLICATION_CREDENTIALS=/app/cohort.json
+      - MONGO_CONN=mongodb://root:example@mongo:27017/?authMechanism=DEFAULT
 
     logging:
       driver: "json-file"
       options:
           max-size: "1200m"
-    # volumes:
-    #   - /Users/akshatsrivastava/akshat_workspace/llm-test:/app
+    volumes:
+      - /Users/akshatsrivastava/akshat_workspace/experiments/llm-test:/app
     
     # network_mode: "host"
     # networks:
     #   - host
   
-  redis:
-    container_name: redis
-    image: redis:6-alpine
-    expose:
-      - '6379'
-    ports:
-      - 6379:6379 
+  # redis:
+  #   container_name: redis
+  #   image: redis:6-alpine
+  #   expose:
+  #     - '6379'
+  #   ports:
+  #     - 6379:6379 
     
-    volumes:
-      - /Users/akshatsrivastava/akshat_workspace/redis_bot:/app
+  #   volumes:
+  #     - /Users/akshatsrivastava/akshat_workspace/redis_bot:/app
     
     # network_mode: "host"
     # networks:
     #   - host
 
-#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 - bp
-#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
+  mongo:
+    image: mongo
+    restart: always
+    container_name: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    ports:
+      - 27017:27017
+    volumes:
+      - /Users/akshatsrivastava/akshat_workspace/db:/data/db
+    # networks:
+    #   - host
+    # network_mode: "host"

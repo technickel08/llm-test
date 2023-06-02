@@ -54,7 +54,7 @@ def audio2text(file)->str:
     return result.text
 
 
-def audio2text_v2(file):
+def audio2text_v2(file,language="en"):
     """
     Using Google TTS Speech Recognition API to convert audio 2 text
     Args:
@@ -73,7 +73,7 @@ def audio2text_v2(file):
             audio = r.record(source)
         logger.info("audo file loaded")
         t1 = time.time()
-        result = r.recognize_google(audio)
+        result = r.recognize_google(audio,language=language)
         logger.info("speech recognition API inference compelete - {}s".format(round(time.time()-t1)))
         logger.info("API call Function executed")
         return str(result)
@@ -81,52 +81,3 @@ def audio2text_v2(file):
         logger.error("some exception occured - {}".format(str(e)))
         return None
     
-
-def text2audio(text):
-    logger.info("audio 2 text initialized")
-    myobj = gTTS(text=text, lang='en', slow=False) 
-    myobj.save("audio_out.wav")
-    logger.info("audio 2 text complete")
-    mp3_fp = BytesIO()
-    myobj.write_to_fp(mp3_fp)
-    logger.info("audio 2 text file to bytes compelete")
-    return "audio_out.wav"
-    
-class ChatBot:
-    def __init__(self, memory, agent_chain):
-        self.memory = memory
-        self.agent = agent_chain
-
-def create_chatbot(model_name, seed_memory=None):
-    search = DuckDuckGoSearchRun()
-    tools = [
-        Tool(
-            name="Current Search",
-            func=search.run,
-            description="useful for all question that asks about live events",
-        ),
-        Tool(
-            name="Topic Search",
-            func=search.run,
-            description="useful for all question that are related to a particular topic, product, concept, or service",
-        )
-    ]
-    memory = seed_memory if seed_memory is not None else ConversationBufferMemory(memory_key="chat_history")
-    chat = ChatOpenAI(temperature=0,model_name="gpt-3.5-turbo")
-    # chain = LLMChain(llm=chat)
-    agent_chain = initialize_agent(tools, chat, agent="conversational-react-description", verbose=True, memory=memory)
-
-    return ChatBot(memory, agent_chain)
-
-
-
-class ResponseHeaderV1(BaseModel):
-    # created_at : str
-    text: str
-
-
-class ResponseHeaderV2(BaseModel):
-    # created_at : str
-    text: str
-    language_code: str
-    voice_gender : str
