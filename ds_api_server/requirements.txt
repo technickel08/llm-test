@@ -16,3 +16,4 @@ uvicorn
 google-cloud-texttospeech
 python-multipart
 aiofiles
+huggingface_hub
