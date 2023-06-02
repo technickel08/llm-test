@@ -95,7 +95,7 @@ def audio2text_v2_api_call(
         logger.info("stt received text - {}".format(str(resp)))
         logger.info("file processed")
         # print(resp,type(resp))
-        out = CHATBOT.conversation(resp,selected_model,user_id,context_enable)
+        out = CHATBOT.conversation(resp,selected_model,user_id,context_enable,openai_turbo_gpt,hugging_face_gpt)
         logger.info("llm received text - {}".format(str(out)))
         header = {"text":out,
                   "language_code": language_code,

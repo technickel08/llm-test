@@ -30,6 +30,7 @@ from langchain.tools import DuckDuckGoSearchRun
 from langchain.agents import initialize_agent
 from langchain.agents import AgentType
 from langchain.chains import LLMChain
+from langchain import HuggingFaceHub
 from langchain.llms import OpenAI
 from connections.mongo_connect import mongo_connect
 from langchain.prompts import PromptTemplate
@@ -89,6 +90,8 @@ def audio2text_v2(file,language="en"):
 class ChatBot:
     def __init__(self):
         self.load_db()
+        self.chat_turbo_gpt = ChatOpenAI(temperature=0,model_name="gpt-3.5-turbo")
+        self.hugging_gpt = HuggingFaceHub(repo_id="OpenAssistant/oasst-sft-4-pythia-12b-epoch-3.5", model_kwargs={"temperature":0.9})
         # self.memory = memory
         # self.agent = agent_chain
 
@@ -100,8 +103,6 @@ class ChatBot:
         try:
             logger.info("retriving context from db")
             context = ""
-            # cont = self.mongocon_ds.get_context_vars(user_id)
-            # self.mongocon_ds.db.conversations_collection()
             start_timestamp = datetime.strptime(start_date, '%Y-%m-%d')
             end_timestamp = datetime.strptime(end_date, '%Y-%m-%d')
             result = self.mongocon_ds.db.conversations_collection.find({"user_id":user_id})
@@ -129,7 +130,14 @@ class ChatBot:
             return None
     
 
-    def conversation(self,text,selected_model,user_id,context_enable,start_date="2022-01-01",end_date="2024-01-01"):
+    def conversation(self,text,
+                     selected_model,
+                     user_id,
+                     context_enable,
+                     openai_turbo_gpt,
+                     hugging_face_gpt,
+                     start_date="2022-01-01",
+                     end_date="2024-01-01"):
         try:
             if context_enable == True:
                 context,context2 = self.load_context(user_id,start_date,end_date)
@@ -140,7 +148,6 @@ class ChatBot:
                 context = "\n"
             logger.info("conversation object initiated")
             # text = text.text
-            chat = ChatOpenAI(temperature=0,model_name=selected_model)
             base_temp = BASE_TEAMPLATE
             template = base_temp+context+"""
             Question: {text}
@@ -150,7 +157,12 @@ class ChatBot:
             # redis_connect.set('some_key', context)
             logger.info("passing context and user input to llm")
             prompt_template = PromptTemplate(input_variables=["text"], template=template,validate_template=False)
-            answer_chain = LLMChain(llm=chat, prompt=prompt_template)
+            if openai_turbo_gpt:
+                answer_chain = LLMChain(llm=self.chat_turbo_gpt, prompt=prompt_template)
+            elif hugging_face_gpt:
+                answer_chain = LLMChain(llm=self.hugging_gpt , prompt=prompt_template)
+            else:
+                answer_chain = LLMChain(llm=self.chat_turbo_gpt, prompt=prompt_template)
             answer = answer_chain.run(text)
             self.update_context(text,answer,user_id)
             logger.info("returning llm output")
