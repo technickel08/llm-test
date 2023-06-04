@@ -33,11 +33,42 @@ from langchain.chains import LLMChain
 from langchain.llms import OpenAI
 from pymongo.errors import ConnectionFailure
 from pymongo import MongoClient,ReplaceOne
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain.callbacks.manager import AsyncCallbackManager,CallbackManager
+from langchain.callbacks.base import BaseCallbackHandler
 from connections.mongo_connect import mongo_connect
 from langchain.prompts import PromptTemplate
 from datetime import datetime
 from baseTemplates.baseTemplate import BASE_TEAMPLATE
+from langchain.schema import LLMResult
+
     
+
+# class MyCustomHandler(BaseCallbackHandler):
+#     # def __init__(self,queue):
+#     #     super(MyCustomHandler,self).__init__()
+#     #     print("custom handler initiated")
+#     #     self.queue = queue
+#     def on_llm_new_token(self,token,**kwargs):
+#         print(token)
+#         self.queue.put(token)
+#         yield token
+
+
+class MyCustomHandler(BaseCallbackHandler):
+    def __init__(self,queue):
+        super(MyCustomHandler,self).__init__()
+        print("custom handler initiated")
+        self.queue = queue
+    def on_llm_new_token(self, token: str, **kwargs) -> None:
+        # print(f"My custom handler, token: {token}")
+        self.queue.put(token)
+    
+    def on_llm_end(self, response: LLMResult, **kwargs) -> None:
+        """Run when LLM ends running."""
+        self.queue.put("DONE")
+
+
 class ChatBot:
     def __init__(self):
         self.load_db()
@@ -81,7 +112,8 @@ class ChatBot:
             return None
     
 
-    def conversation(self,text,selected_model,user_id,context_enable,start_date="2022-01-01",end_date="2024-01-01"):
+    def conversation(self,text,selected_model,user_id,context_enable,queue,start_date="2022-01-01",end_date="2024-01-01"):
+        self.queue = queue
         try:
             if context_enable == True:
                 context,context2 = self.load_context(user_id,start_date,end_date)
@@ -92,8 +124,8 @@ class ChatBot:
             else:
                 context = "\n"
             logger.info("conversation object initiated")
-            text = text.text
-            chat = ChatOpenAI(temperature=0,model_name=selected_model)
+
+            chat = ChatOpenAI(temperature=0,model_name=selected_model,streaming=True,callback_manager=CallbackManager([MyCustomHandler(queue)]))
             base_temp = BASE_TEAMPLATE
             template = base_temp+context+"""
             Question: {text}
@@ -104,10 +136,10 @@ class ChatBot:
             logger.info("passing context and user input to llm")
             prompt_template = PromptTemplate(input_variables=["text"], template=template,validate_template=False)
             answer_chain = LLMChain(llm=chat, prompt=prompt_template)
-            answer = answer_chain.run(text)
-            self.update_context(text,answer,user_id)
+            # answer = answer_chain.run(text)
+            # self.update_context(text,answer,user_id)
             logger.info("returning llm output")
-            return answer
+            return answer_chain
         except Exception as e:
             logger.error("some exception occured - {}".format(str(e)))
             raise
@@ -134,6 +166,7 @@ class ResponseHeaderV1(BaseModel):
 
 class ResponseHeaderV2(BaseModel):
     # created_at : str
-    text: str
-    language_code: str
-    voice_gender : str
+    text: str 
+    voice_code: str = 'en-IN'
+    voice_gender : str = 'FEMALE'
+    voice_name: str = 'en-IN-Standard-A'

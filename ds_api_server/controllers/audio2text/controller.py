@@ -34,6 +34,7 @@ from langchain.schema import messages_from_dict, messages_to_dict
 from fastapi.responses import FileResponse
 from google.cloud import texttospeech
 from ds_api_server import app,connections,get_current_username
+import io
 
 
 # app = FastAPI()
@@ -53,39 +54,41 @@ from ds_api_server import app,connections,get_current_username
 
 redis_db = {123:"hello"}
 
+# @app.post('/audio_to_text', status_code=200)
+# def audio2text_v1_api_call(audio : UploadFile = File(None,description="Upload audio file"),
+#                         language:Optional[str]=None):
+#     """
+#     STT :  Speech to Text conversion
+#     Args:
+#         text (ResponseHeaderV1): Audio to convert
+
+#     Returns:
+#         JSONResponse: Converted Text and detected Language
+#     """    
+#     out = {
+#             "status":None,
+#             "message":None,
+#             "results":{}
+#         }
+#     try:
+#         resp = utils.audio2text(audio.file)
+#         out["result"] = {"text":resp.text}
+#         return out
+#     except Exception as e:
+#         logger.error("some exception occurred-{}".format(str(e)))
+#         logger.error(traceback.format_exc())
+#         out={}
+#         out["status"]='FAILED'
+#         out["message"]=str(traceback.format_exc())
+#         return JSONResponse(status_code=400,content=out)
+
+
 @app.post('/audio_to_text', status_code=200)
-def audio2text_v1_api_call(audio : UploadFile = File(None,description="Upload audio file"),
-                        language:Optional[str]=None):
-    """
-    STT :  Speech to Text conversion
-    Args:
-        text (ResponseHeaderV1): Audio to convert
-
-    Returns:
-        JSONResponse: Converted Text and detected Language
-    """    
-    out = {
-            "status":None,
-            "message":None,
-            "results":{}
-        }
-    try:
-        resp = utils.audio2text(audio.file)
-        out["result"] = {"text":resp.text}
-        return out
-    except Exception as e:
-        logger.error("some exception occurred-{}".format(str(e)))
-        logger.error(traceback.format_exc())
-        out={}
-        out["status"]='FAILED'
-        out["message"]=str(traceback.format_exc())
-        return JSONResponse(status_code=400,content=out)
-
-
-@app.post('/audio_to_text_v2', status_code=200)
-def audio2text_v2_api_call(
+async def audio2text_v2_api_call(
     audio : UploadFile = File(None,description="Upload audio file"),
-                        language:Optional[str]=None) -> JSONResponse:
+    model_whisper :bool = False,
+    model_gtts: bool=True,
+    language:Optional[str]=None) -> JSONResponse:
     
     """
     STT :  Speech to Text conversion
@@ -106,12 +109,16 @@ def audio2text_v2_api_call(
         # audio=audio.read()
         if audio is not None:  
             logger.info("reading file")
-            audio= audio.file
-            logger.info("file read")
         else:
             logger.info("no audio")
         logger.info("processing file")
-        resp = utils.audio2text_v2(audio,str(language))
+        if model_whisper==True:
+            buf =audio.file.read()
+            buffer = io.BytesIO(buf)
+            buffer.name = audio.filename
+            resp = utils.audio2text(buffer)
+        else:
+            resp = utils.audio2text_v2(audio.file,str(language))
         logger.info("file processed")
         print(resp,type(resp))
         out["result"] = {"text":resp,"language":str(language)}

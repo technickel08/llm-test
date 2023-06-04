@@ -50,69 +50,79 @@ from ds_api_server import app,connections,get_current_username
 
 
 
+# @app.post('/text2audio', status_code=200)
+# def text2audio_api_call(
+#     text : ResponseHeaderV1,
+#     # audio : UploadFile = File(None,description="Upload audio file")
+#     ) -> StreamingResponse:
+#     """
+#     TTS : Text to speech conversion
+#     Args:
+#         text (ResponseHeaderV1): text to convert
+
+#     Returns:
+#         StreamingResponse: audio streaming output file
+#     """
+
+#     t1 = time.time()
+#     text = text.dict()
+#     text = text["text"]
+#     print(text)
+#     out = {
+#             "status":None,
+#             "message":None,
+#             "results":{}
+#         }
+#     try:
+#         # audio=audio.read()
+#         if text is not None:  
+#             logger.info("reading file")
+#             resp = utils.text2audio(text)
+#             logger.info("file read")
+#         else:
+#             logger.info("no audio")
+#         # logger.info("processing file")
+#         # resp = utils.audio2text_v2(audio)
+#         # logger.info("file processed")
+#         print(type(resp))
+#         out["result"] = {"file":resp}
+#         out["resp_time"] = round(time.time()-t1,2)
+#         logger.info("complete")
+#         return FileResponse(resp)
+#     # StreamingResponse(
+#     #         content=resp,
+#     #         status_code=status.HTTP_200_OK,
+#     #         media_type="audio/wav",
+#     #     )
+#     except Exception as e:
+#         logger.error("some exception occurred-{}".format(str(e)))
+#         logger.error(traceback.format_exc())
+#         out={}
+#         out["status"]='FAILED'
+#         out["message"]=str(traceback.format_exc())
+#         return JSONResponse(status_code=400,content=out)
+
+
+
 @app.post('/text2audio', status_code=200)
-def text2audio_api_call(
-    text : ResponseHeaderV1,
-    # audio : UploadFile = File(None,description="Upload audio file")
-    ) -> StreamingResponse:
-    """
-    TTS : Text to speech conversion
-    Args:
-        text (ResponseHeaderV1): text to convert
-
-    Returns:
-        StreamingResponse: audio streaming output file
-    """
-
-    t1 = time.time()
-    text = text.dict()
-    text = text["text"]
-    print(text)
-    out = {
-            "status":None,
-            "message":None,
-            "results":{}
-        }
-    try:
-        # audio=audio.read()
-        if text is not None:  
-            logger.info("reading file")
-            resp = utils.text2audio(text)
-            logger.info("file read")
-        else:
-            logger.info("no audio")
-        # logger.info("processing file")
-        # resp = utils.audio2text_v2(audio)
-        # logger.info("file processed")
-        print(type(resp))
-        out["result"] = {"file":resp}
-        out["resp_time"] = round(time.time()-t1,2)
-        logger.info("complete")
-        return FileResponse(resp)
-    # StreamingResponse(
-    #         content=resp,
-    #         status_code=status.HTTP_200_OK,
-    #         media_type="audio/wav",
-    #     )
-    except Exception as e:
-        logger.error("some exception occurred-{}".format(str(e)))
-        logger.error(traceback.format_exc())
-        out={}
-        out["status"]='FAILED'
-        out["message"]=str(traceback.format_exc())
-        return JSONResponse(status_code=400,content=out)
-
-
-
-@app.post('/text2audio_v2', status_code=200)
 def text2audio_api_call_v2(
-    text : ResponseHeaderV2,
+    text : ResponseHeaderV2
+
     # audio : UploadFile = File(None,description="Upload audio file")
     ) -> StreamingResponse:
     """
     TTS : Text to speech conversion
     Args:
         text (ResponseHeaderV1): text to convert
+        languages-codes-names-gender
+        English (India)	Standard	en-IN	en-IN-Standard-A	FEMALE	
+        English (India)	Standard	en-IN	en-IN-Standard-B	MALE
+        English (India)	WaveNet	en-IN	en-IN-Wavenet-A	FEMALE	
+        English (India)	WaveNet	en-IN	en-IN-Wavenet-B	MALE
+        Hindi (India)	Standard	hi-IN	hi-IN-Standard-A	FEMALE	
+        Hindi (India)	Standard	hi-IN	hi-IN-Standard-B	MALE
+        Hindi (India)	WaveNet	hi-IN	hi-IN-Wavenet-A	FEMALE	
+        Hindi (India)	WaveNet	hi-IN	hi-IN-Wavenet-B	MALE
 
     Returns:
         StreamingResponse: audio streaming output file
@@ -123,24 +133,25 @@ def text2audio_api_call_v2(
         client = texttospeech.TextToSpeechClient()
         text = text.dict()
         voice_gender=text["voice_gender"]
-        language_code=text["language_code"]
+        language_code=text["voice_code"]
+        voice_name= text["voice_name"]
         text=text["text"]
         input_text = texttospeech.SynthesisInput(text=text)
 
         # Note: the voice can also be specified by name.
         # Names of voices can be retrieved with client.list_voices().
-        if voice_gender == "FEMALE":
-            voice = texttospeech.VoiceSelectionParams(
-                language_code=language_code,
-                name="en-IN-Standard-D",
-                ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
-            )
-        else:
-            voice = texttospeech.VoiceSelectionParams(
-                language_code=language_code,
-                name="en-IN-Standard-B",
-                ssml_gender=texttospeech.SsmlVoiceGender.MALE,
-            )
+        # if voice_gender == "FEMALE":
+        voice = texttospeech.VoiceSelectionParams(
+            language_code=language_code,
+            name=voice_name,
+            ssml_gender=voice_gender#texttospeech.SsmlVoiceGender.FEMALE,
+        )
+        # else:
+        #     voice = texttospeech.VoiceSelectionParams(
+        #         language_code=language_code,
+        #         name="en-IN-Standard-B",
+        #         ssml_gender=texttospeech.SsmlVoiceGender.MALE,
+        #     )
         audio_config = texttospeech.AudioConfig(
             audio_encoding=texttospeech.AudioEncoding.MP3
         )
@@ -163,4 +174,3 @@ def text2audio_api_call_v2(
         out["status"]='FAILED'
         out["message"]=str(traceback.format_exc())
         return JSONResponse(status_code=400,content=out)
-

@@ -91,7 +91,7 @@ class ChatBot:
     def __init__(self):
         self.load_db()
         self.chat_turbo_gpt = ChatOpenAI(temperature=0,model_name="gpt-3.5-turbo")
-        self.hugging_gpt = HuggingFaceHub(repo_id="OpenAssistant/oasst-sft-4-pythia-12b-epoch-3.5", model_kwargs={"temperature":0.9})
+        self.hugging_gpt = HuggingFaceHub(repo_id="facebook/mbart-large-50", model_kwargs={"temperature":0.9})
         # self.memory = memory
         # self.agent = agent_chain
 
@@ -142,7 +142,8 @@ class ChatBot:
             if context_enable == True:
                 context,context2 = self.load_context(user_id,start_date,end_date)
                 if context is not None:
-                    print(context)
+                    context = context[-1000:]
+                    print(len(context),"*"*100)
                 context = str(context)+"\n"
             else:
                 context = "\n"
@@ -166,6 +167,7 @@ class ChatBot:
             answer = answer_chain.run(text)
             self.update_context(text,answer,user_id)
             logger.info("returning llm output")
+            print("\n",answer)
             return answer
         except Exception as e:
             logger.error("some exception occured - {}".format(str(e)))

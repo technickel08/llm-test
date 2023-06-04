@@ -14,9 +14,10 @@ services:
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - OPENAI_API_KEY=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
+      - OPENAI_API_KEY=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
       - GOOGLE_APPLICATION_CREDENTIALS=/app/cohort.json
       - MONGO_CONN=mongodb://root:example@mongo:27017/?authMechanism=DEFAULT
+      - HUGGINGFACEHUB_API_TOKEN=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
 
     logging:
       driver: "json-file"

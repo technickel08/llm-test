@@ -51,9 +51,18 @@ class ResponseHeaderV1(BaseModel):
     # created_at : str
     text: str
 
+# English (India)	Standard	en-IN	en-IN-Standard-A	FEMALE	
+#         English (India)	Standard	en-IN	en-IN-Standard-B	MALE
+#         English (India)	WaveNet	en-IN	en-IN-Wavenet-A	FEMALE	
+#         English (India)	WaveNet	en-IN	en-IN-Wavenet-B	MALE
+#         Hindi (India)	Standard	hi-IN	hi-IN-Standard-A	FEMALE	
+#         Hindi (India)	Standard	hi-IN	hi-IN-Standard-B	MALE
+#         Hindi (India)	WaveNet	hi-IN	hi-IN-Wavenet-A	FEMALE	
+#         Hindi (India)	WaveNet	hi-IN	hi-IN-Wavenet-B	MALE
 
 class ResponseHeaderV2(BaseModel):
     # created_at : str
-    text: str
-    language_code: str
-    voice_gender : str
+    text: str 
+    voice_code: str = 'en-IN'
+    voice_gender : str = 'FEMALE'
+    voice_name: str = 'en-IN-Standard-A'
