@@ -17,3 +17,5 @@ google-cloud-texttospeech
 python-multipart
 aiofiles
 huggingface_hub
+anyio
+sse-starlette

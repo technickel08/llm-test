@@ -110,10 +110,12 @@ async def message_stream(request: Request,
                 voice_code :str = "en-IN",
                 voice_gender :str = "FEMALE",
                 voice_name :str = "en-IN-Standard-A",
+                tts_lang : str = "en",
                  audio : UploadFile = File(None,description="Upload audio file")):
     q = Queue()
     t1 = time.time()
-    user_input = audio2text_v2(audio)
+    user_input = audio2text_v2(audio.file,tts_lang)
+    logger.info("audio to text output - ".format(user_input))
     thread = Thread(target=CHATBOT.conversation(user_input,selected_model,user_id,context_enable,q).run, kwargs={"text": user_input})
     tts = TTS(voice_code,voice_gender,voice_name)
     thread.start()
