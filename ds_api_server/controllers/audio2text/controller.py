@@ -88,7 +88,8 @@ async def audio2text_v2_api_call(
     audio : UploadFile = File(None,description="Upload audio file"),
     model_whisper :bool = False,
     model_gtts: bool=True,
-    language:Optional[str]=None) -> JSONResponse:
+    language:Optional[str]=None,
+    username: str = Depends(get_current_username)) -> JSONResponse:
     
     """
     STT :  Speech to Text conversion

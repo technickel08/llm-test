@@ -62,12 +62,15 @@ def audio2text_v2(file,language="en"):
 
     Returns:
         str: Converted text
-    """ 
+    """
     try:
         logger.info("Speech Recognition API call initialised")
         r = sr.Recognizer()
         logger.info("Speech Recognition object initialised")
-        sound = AudioSegment.from_mp3(file)
+        try:
+            sound = AudioSegment.from_mp3(file)
+        except: 
+            sound = AudioSegment.from_wav(file)
         sound.export("input_audio.wav", format="wav")
         audio_file = sr.AudioFile("input_audio.wav")
         logger.info("audio file saved")
@@ -82,4 +85,3 @@ def audio2text_v2(file,language="en"):
     except Exception as e:
         logger.error("some exception occured - {}".format(str(e)))
         raise
-    

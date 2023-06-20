@@ -65,7 +65,8 @@ def audio2text_v2_api_call(
                         language:Optional[str]="en",
                         context_enable :bool = False,
                         openai_turbo_gpt :bool = False,
-                        hugging_face_gpt:bool = False) -> JSONResponse:
+                        hugging_face_gpt:bool = False,
+                        username: str = Depends(get_current_username)) -> JSONResponse:
     
     """
     STT :  Speech to Text conversion
