@@ -17,6 +17,7 @@ from gtts import gTTS
 from langchain.schema import (
     HumanMessage
 )
+import json
 import speech_recognition as sr
 from pydub import AudioSegment
 from io import BytesIO
@@ -60,12 +61,15 @@ class MyCustomHandler(BaseCallbackHandler):
         super(MyCustomHandler,self).__init__()
         print("custom handler initiated")
         self.queue = queue
+        
     def on_llm_new_token(self, token: str, **kwargs) -> None:
-        # print(f"My custom handler, token: {token}")
+        t1 = time.time()
+        # print("token aaya")
         self.queue.put(token)
     
     def on_llm_end(self, response: LLMResult, **kwargs) -> None:
         """Run when LLM ends running."""
+
         self.queue.put("DONE")
 
 
@@ -78,6 +82,7 @@ class ChatBot:
 
     def load_db(self):
         self.mongocon_ds=mongo_connect(os.environ.get('MONGO_CONN',''),'ds_db')
+        self.user_detail=mongo_connect(os.environ.get('MONGO_CONN',''),'user_details')
 
     def load_context(self,user_id,start_date,end_date):
         try:
@@ -112,7 +117,8 @@ class ChatBot:
             return None
     
 
-    def conversation(self,text,selected_model,user_id,context_enable,queue,start_date="2022-01-01",end_date="2024-01-01"):
+
+    def conversation(self,text,selected_model,user_id,context_enable,queue,session_id,start_date="2022-01-01",end_date="2024-01-01"):
         self.queue = queue
         try:
             if context_enable == True:
@@ -123,21 +129,36 @@ class ChatBot:
                 context = str(context)+"\n"
             else:
                 context = "\n"
-            logger.info("conversation object initiated")
+            logger.info("conversation object initiated");t1=time.time()
 
-            chat = ChatOpenAI(temperature=0,model_name=selected_model,streaming=True,callback_manager=CallbackManager([MyCustomHandler(queue)]))
-            base_temp = BASE_TEAMPLATE
-            template = base_temp+context+"""
-            Question: {text}
-            Answer:
-            """
+            chat = ChatOpenAI(temperature=0,model_name=selected_model,streaming=True,callback_manager=CallbackManager([MyCustomHandler(queue)]));print(time.time()-t1,"*"*10,"open ai connection established")
+            valid_session = self.mongocon_ds.db.conversations_collection.find_one({"session_id":session_id})
+            session_id = session_id if valid_session is not None else "None"
+            print(session_id)
+            base_temp = BASE_TEAMPLATE.format(session_id)
+            print(base_temp)
+            print(time.time()-t1,"*"*10,"base template")
+            result = self.user_detail.db.bank_info.find_one({"user_id":user_id})
+            if result:
+                logger.info("bank info found")
+                account_number = result["account_no"]
+                current_balance = result["current_balance"]
+                balance_string = "account Number : {}  Available Balance : {}".format(account_number,current_balance)
+                template = base_temp+"\nPrevious Conversation Context : \n"+context+"\nUser bank details information below : \n"+balance_string+"\n"+"""
+                Question: {text}
+                Answer:
+                """
+            else:
+                logger.info("bank info not found")
+                template = base_temp+context+"""
+                Question: {text}
+                Answer:
+                """
             # redis_connect.get(user_id)
             # redis_connect.set('some_key', context)
             logger.info("passing context and user input to llm")
             prompt_template = PromptTemplate(input_variables=["text"], template=template,validate_template=False)
             answer_chain = LLMChain(llm=chat, prompt=prompt_template)
-            # answer = answer_chain.run(text)
-            # self.update_context(text,answer,user_id)
             logger.info("returning llm output")
             return answer_chain
         except Exception as e:
@@ -145,13 +166,16 @@ class ChatBot:
             raise
             return {"msg":str(e)}
 
-    def update_context(self,text,answer,user_id):
+    def update_context(self,text,answer,user_id,session_id):
         try:
+            logger.info("updating context")
             context_dict = {"user_id":user_id,
                             "human":text,
                             "bot":answer,
+                            "session_id":session_id,
                             "created_at":datetime.now()}
             self.mongocon_ds.db.conversations_collection.insert_one(context_dict)
+            logger.info("context updated")
             return True 
         except Exception as e:
             logger.error("some exception occured - {}".format(str(e)))
@@ -159,14 +183,14 @@ class ChatBot:
 
 
 
-class ResponseHeaderV1(BaseModel):
+class RequestHeaderV1(BaseModel):
+    # created_at : str
+    text: Optional[str] = None
+
+
+class RequestHeaderV2(BaseModel):
     # created_at : str
     text: str
-
-
-class ResponseHeaderV2(BaseModel):
-    # created_at : str
-    text: str 
     voice_code: str = 'en-IN'
     voice_gender : str = 'FEMALE'
     voice_name: str = 'en-IN-Standard-A'

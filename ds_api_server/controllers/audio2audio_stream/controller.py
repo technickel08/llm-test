@@ -20,8 +20,8 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import SimpleSequentialChain
 from fastapi import FastAPI,Response,status,Request,Depends
 from typing import Optional
-from . import utils
-from .utils import ResponseHeaderV1,ResponseHeaderV2,ChatBot
+from . import utils_search
+from .utils import RequestHeaderV1,RequestHeaderV2,ChatBot
 import traceback
 from fastapi import FastAPI,Request,Response,status,UploadFile,File,Form,Body,HTTPException,Depends
 from fastapi.responses import FileResponse
@@ -46,6 +46,7 @@ import uuid
 
 # app = FastAPI()
 CHATBOT = ChatBot()
+CHATBOT_SEARCH = utils_search.ChatBot()
 
 ## Initialised redis connection
 # redis_connect = redis.StrictRedis(host='0.0.0.0', port=6379, db=0)
@@ -103,21 +104,36 @@ class TTS():
 #base64.b64decode(response.audio_content)
 
 @app.post('/audio2audio_stream')
-async def message_stream(request: Request,
-                         user_id:int,
-                 selected_model :str = "gpt-3.5-turbo",
-                 context_enable :bool = False ,
+async def message_stream(
+                request: Request,
+                user_id:int,
+                text : Optional[str]=None,
+                selected_model :str = "gpt-3.5-turbo",
+                context_enable :bool = False ,
+                internet_enable :bool = False ,
                 voice_code :str = "en-IN",
                 voice_gender :str = "FEMALE",
                 voice_name :str = "en-IN-Standard-A",
                 tts_lang : str = "en",
-                audio : UploadFile = File(None,description="Upload audio file"),
-                username: str = Depends(get_current_username)):
+                audio : Optional[UploadFile] = File(None,description="Upload audio file"),
+                session_id : Optional[str] = uuid.uuid1(),
+                username: str = Depends(get_current_username)
+                ):
     q = Queue()
     t1 = time.time()
-    user_input = audio2text_v2(audio.file,tts_lang);print(str(user_input))
+    if text is None and audio is not None:
+        logger.info("---- No text found ----")
+        logger.info("---- audio found ----")
+        user_input = audio2text_v2(audio.file,tts_lang)
+    else:
+        logger.info("---- No audio found ----")
+        logger.info("---- Text found ----")
+        user_input = str(text)
     logger.info("audio to text output - ".format(user_input))
-    thread = Thread(target=CHATBOT.conversation(user_input,selected_model,user_id,context_enable,q).run, kwargs={"text": user_input})
+    if internet_enable:
+        thread = Thread(target=CHATBOT_SEARCH.conversation(user_input,selected_model,user_id,context_enable,q,str(session_id)).run, kwargs={"input": user_input})
+    else:
+        thread = Thread(target=CHATBOT.conversation(user_input,selected_model,user_id,context_enable,q,str(session_id)).run, kwargs={"text": user_input})
     tts = TTS(voice_code,voice_gender,voice_name)
     thread.start()
     async def event_generator():
@@ -126,30 +142,35 @@ async def message_stream(request: Request,
             word = ""
             final_out = ""
             print(time.time()-t1,"*"*10,"async generator")
+            internet_out = False
             while True:
                 if q.qsize()>0:
                     token = q.get()
-                    final_out += token
+                    if token in ["Final","Answer"]:
+                        internet_out = True
                     # print("token nikala")
-                    if token != "DONE":
-                        word+= token
-                    if token in [".",","," ","।","?"]:
-                    # print(time.time()-t1)
-                        print(word,time.time()-t1)
-                        yield {
-                                    "event": str(word),
-                                    "id": uid,
-                                    "data": tts.run(word)
-                            }
-                        print(time.time()-t1)
-                        word = ""
-                    if token == "DONE":
-                        yield {
-                                    "event": str(word),
-                                    "id": uid,
-                                    "data": tts.run(word)
-                            }
-                        break
+                    if internet_enable is False or internet_out is True:
+                        print(token)
+                        final_out += token
+                        if token != "DONE":
+                            word+= token
+                        if token in [".",","," ","।","?"]:
+                        # print(time.time()-t1)
+                            print(word,time.time()-t1)
+                            yield {
+                                        "event": str(word),
+                                        "id": uid,
+                                        "data": tts.run(word)
+                                }
+                            print(time.time()-t1)
+                            word = ""
+                        if token == "DONE":
+                            yield {
+                                        "event": str(word),
+                                        "id": uid,
+                                        "data": tts.run(word)
+                                }
+                            break
                     t1 = time.time()
         # while True:
             # If client closes connection, stop sending events
@@ -158,7 +179,7 @@ async def message_stream(request: Request,
                     break
 
                 # Checks for new messages and return them to client if any
-            CHATBOT.update_context(user_input,final_out,user_id)
+            CHATBOT.update_context(user_input,final_out,user_id,str(session_id))
             await asyncio.sleep(STREAM_DELAY)
     #thread.join()
     return EventSourceResponse(event_generator())
