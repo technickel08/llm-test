@@ -147,10 +147,8 @@ async def message_stream(
             while True:
                 if q.qsize()>0:
                     token = q.get()
-                    print(token)
                     if "Final" in token or "Answer" in token or "Final Answer : " in token or token in ["Final","Answer"] or internet_enable==False:
                         final_out = True
-                        print(final_out)
                     if final_out ==True:
                         if (token != "DONE") & (token.find("Final") == -1) & (token.find("Answer") == -1):
                             word+= token
