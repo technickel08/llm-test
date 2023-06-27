@@ -21,6 +21,7 @@ from langchain.chains import SimpleSequentialChain
 from fastapi import FastAPI,Response,status,Request,Depends
 from typing import Optional
 from . import utils_search
+import re
 from .utils import RequestHeaderV1,RequestHeaderV2,ChatBot
 import traceback
 from fastapi import FastAPI,Request,Response,status,UploadFile,File,Form,Body,HTTPException,Depends
@@ -133,36 +134,35 @@ async def message_stream(
     if internet_enable:
         thread = Thread(target=CHATBOT_SEARCH.conversation(user_input,selected_model,user_id,context_enable,q,str(session_id)).run, kwargs={"input": user_input})
     else:
+        # pass
         thread = Thread(target=CHATBOT.conversation(user_input,selected_model,user_id,context_enable,q,str(session_id)).run, kwargs={"text": user_input})
     tts = TTS(voice_code,voice_gender,voice_name)
     thread.start()
     async def event_generator():
             uid = uuid.uuid1()
-            t1 = time.time()
             word = ""
-            final_out = ""
-            print(time.time()-t1,"*"*10,"async generator")
-            internet_out = False
+            t1 = time.time()
+            print(time.time()-t1)
+            final_out = False
             while True:
                 if q.qsize()>0:
                     token = q.get()
-                    if token in ["Final","Answer"]:
-                        internet_out = True
-                    # print("token nikala")
-                    if internet_enable is False or internet_out is True:
-                        print(token)
-                        final_out += token
-                        if token != "DONE":
+                    print(token)
+                    if "Final" in token or "Answer" in token or "Final Answer : " in token or token in ["Final","Answer"] or internet_enable==False:
+                        final_out = True
+                        print(final_out)
+                    if final_out ==True:
+                        if (token != "DONE") & (token.find("Final") == -1) & (token.find("Answer") == -1):
                             word+= token
-                        if token in [".",","," ","।","?"]:
+                        if token in [".",","," ","।","?"] or len(token)>10:
                         # print(time.time()-t1)
-                            print(word,time.time()-t1)
+                        
                             yield {
                                         "event": str(word),
                                         "id": uid,
                                         "data": tts.run(word)
                                 }
-                            print(time.time()-t1)
+                            print(word)
                             word = ""
                         if token == "DONE":
                             yield {
@@ -177,7 +177,6 @@ async def message_stream(
                 if await request.is_disconnected():
                     print("connection terminated")
                     break
-
                 # Checks for new messages and return them to client if any
             CHATBOT.update_context(user_input,final_out,user_id,str(session_id))
             await asyncio.sleep(STREAM_DELAY)

@@ -52,6 +52,7 @@ from typing import List, Union
 import re
 from langchain.prompts import BaseChatPromptTemplate
 from baseTemplates.template import CustomPromptTemplate, read_template
+from queue import Queue
 from langchain.callbacks.manager import (
     AsyncCallbackManagerForChainRun,
     CallbackManagerForChainRun,
@@ -59,6 +60,9 @@ from langchain.callbacks.manager import (
 from langchain.callbacks.streaming_stdout_final_only import (
     FinalStreamingStdOutCallbackHandler,
 )
+from pydantic import BaseModel, ValidationError, Extra
+from connections.personal_info import personal_info_wrapper
+
 
 # class MyCustomHandler(BaseCallbackHandler):
 #     # def __init__(self,queue):
@@ -104,7 +108,6 @@ class MyCustomHandler(FinalStreamingStdOutCallbackHandler):
     def on_llm_new_token(self, token: str, **kwargs) -> None:
         t1 = time.time()
         # print(token)
-        # print(type(self.queue),"*"*10)
         # if token in ["Final","Answer",":"]:
         #     self.answer=True
         # if self.answer == True:
@@ -112,25 +115,30 @@ class MyCustomHandler(FinalStreamingStdOutCallbackHandler):
     
     def on_llm_end(self, response: LLMResult, **kwargs) -> None:
         """Run when LLM ends running."""
+        print("LLM end called")
         self.queue.put("DONE")
+
 
 
 # Import necessary classes and modules
 # Define the CustomOutputParser class, inheriting from AgentOutputParser
-class CustomOutputParser(AgentOutputParser):
-    
+class CustomOutputParser(AgentOutputParser,extra=Extra.allow):
+    def __init__(self,queue):
+        super(CustomOutputParser,self).__init__()
+        self.queue = queue
     # Override the parse method from the parent class
     def parse(self, llm_output: str) -> Union[AgentAction, AgentFinish]:
         print("parsing output")
         # If the "Final Answer:" is found in the output, return an AgentFinish object
         if "Final Answer:" in llm_output:
-            print("final answer : ","*"*10)
             return AgentFinish(
                 return_values={"output": llm_output.split("Final Answer:")[-1].strip()},
                 log=llm_output,
             )
         # Add a condition to handle the case when no action is needed
         if "Action: None" in llm_output:
+            print("final answer parsed: ","*"*10)
+            self.queue.put("Final Answer : "+str(llm_output.split("Thought:")[-1].strip().replace("Action: None", "")))
             return AgentFinish(
                 return_values={"output": llm_output.split("Thought:")[-1].strip().replace("Action: None", "")},
                 log=llm_output,
@@ -141,7 +149,8 @@ class CustomOutputParser(AgentOutputParser):
         match = re.search(regex, llm_output, re.DOTALL)
         # If no match is found, return an AgentFinish object with the original output
         if not match:
-            print("no final answer : ","*"*10)
+            print("final answer parsed: ","*"*10)
+            self.queue.put("Final Answer : "+str(llm_output))
             return AgentFinish(
                 return_values={"output": llm_output},
                 log=llm_output,
@@ -218,28 +227,25 @@ class ChatBot:
             base_temp = BASE_TEAMPLATE
             print(time.time()-t1,"*"*10,"base template")
             result = self.user_detail.db.bank_info.find_one({"user_id":user_id})
-            if result:
-                logger.info("bank info found")
-                personal_info = json.dumps(result["user_data"]).replace("{","(").replace("}",")")
-                # balance_string = "account Number : {}  Available Balance : {}".format(account_number,current_balance)
-                template = base_temp+"\nPrevious Conversation Context : \n"+context+"\nUser personal information below in JSON FORMAT : \n"+personal_info+"\n"+"""
-                {tools}
-                Question: {text}
-                Answer:
-                {agent_scratchpad}
-                """
+            if result is None:
+                logger.info("persoanl info not found")
+                result = personal_info_wrapper(user_id)
+                self.update_personal_info(result,user_id)
+                personal_info = json.dumps(result).replace("{","(").replace("}",")")
             else:
-                personal_info=""
-                logger.info("bank info not found")
-                template = base_temp+context+"""
-                Question: {text}
-                Answer:
-                """
+                logger.info("Persoanl info found")
+                if result["created_at"].date()<datetime.today().date():
+                    logger.info("user persoanl info expired. Fetching Again")
+                    result = personal_info_wrapper(user_id)
+                    self.update_personal_info(result,user_id)
+                    personal_info = json.dumps(result).replace("{","(").replace("}",")")
+                else:
+                    personal_info = json.dumps(result["user_data"]).replace("{","(").replace("}",")")
             # print(template)
             # redis_connect.get(user_id)
             # redis_connect.set('some_key', context)
             logger.info("passing context and user input to llm")
-            output_parser = CustomOutputParser()
+            output_parser = CustomOutputParser(queue=queue)
             tools = [
         Tool(
             name="Search",
@@ -297,6 +303,19 @@ class ChatBot:
                             "bot":answer,
                             "created_at":datetime.now()}
             self.mongocon_ds.db.conversations_collection.insert_one(context_dict)
+            logger.info("context updated")
+            return True 
+        except Exception as e:
+            logger.error("some exception occured - {}".format(str(e)))
+        
+    
+    def update_personal_info(self,data,user_id):
+        try:
+            logger.info("updating context")
+            context_dict = {"user_id":user_id,
+                            "user_data":data,
+                            "created_at":datetime.now()}
+            self.user_detail.db.bank_info.replaceOne(context_dict)
             logger.info("context updated")
             return True 
         except Exception as e:

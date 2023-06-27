@@ -42,9 +42,8 @@ from langchain.prompts import PromptTemplate
 from datetime import datetime
 from baseTemplates.baseTemplate import BASE_TEAMPLATE
 from langchain.schema import LLMResult
-
+from connections.personal_info import personal_info_wrapper
     
-
 # class MyCustomHandler(BaseCallbackHandler):
 #     # def __init__(self,queue):
 #     #     super(MyCustomHandler,self).__init__()
@@ -139,12 +138,23 @@ class ChatBot:
             print(base_temp)
             print(time.time()-t1,"*"*10,"base template")
             result = self.user_detail.db.bank_info.find_one({"user_id":user_id})
-            if result:
+            if result is None:
+                logger.info("persoanl info not found")
+                result = personal_info_wrapper(user_id)
+                self.update_personal_info(result,user_id)
+                personal_info = json.dumps(result).replace("{","(").replace("}",")")
+            else:
+                logger.info("Persoanl info found")
+                if result["created_at"].date()<datetime.today().date():
+                    logger.info("user persoanl info expired. Fetching Again")
+                    result = personal_info_wrapper(user_id)
+                    self.update_personal_info(result,user_id)
+                    personal_info = json.dumps(result).replace("{","(").replace("}",")")
+                else:
+                    personal_info = json.dumps(result["user_data"]).replace("{","(").replace("}",")")
+            if personal_info:
                 logger.info("bank info found")
-                account_number = result["account_no"]
-                current_balance = result["current_balance"]
-                balance_string = "account Number : {}  Available Balance : {}".format(account_number,current_balance)
-                template = base_temp+"\nPrevious Conversation Context : \n"+context+"\nUser bank details information below : \n"+balance_string+"\n"+"""
+                template = base_temp+"\nPrevious Conversation Context : \n"+context+"\nUser personal information below : \n"+personal_info+"\n"+"""
                 Question: {text}
                 Answer:
                 """
@@ -180,7 +190,18 @@ class ChatBot:
         except Exception as e:
             logger.error("some exception occured - {}".format(str(e)))
         
-
+        
+    def update_personal_info(self,data,user_id):
+        try:
+            logger.info("updating context")
+            context_dict = {"user_id":user_id,
+                            "user_data":data,
+                            "created_at":datetime.now()}
+            self.user_detail.db.bank_info.replaceOne(context_dict)
+            logger.info("context updated")
+            return True 
+        except Exception as e:
+            logger.error("some exception occured - {}".format(str(e)))
 
 
 class RequestHeaderV1(BaseModel):
